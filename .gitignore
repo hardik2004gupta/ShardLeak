@@ -1,0 +1,41 @@
+# Secrets
+.env
+
+# Go build artifacts
+bin/
+dist/
+backend/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go test cache and coverage
+*.test
+*.out
+coverage/
+coverage.html
+
+# Node / Next.js
+node_modules/
+.next/
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Docker volumes (local bind mounts if added later)
+postgres_data/
