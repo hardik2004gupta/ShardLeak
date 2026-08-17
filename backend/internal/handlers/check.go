@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shardleak/shardleak/internal/metrics"
 	"github.com/shardleak/shardleak/internal/ratelimit"
 )
 
@@ -62,15 +63,27 @@ func (h *CheckHandler) Check(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	algoLabel := string(algo)
+	start := time.Now()
+	metrics.RequestsTotal.WithLabelValues(algoLabel).Inc()
+
 	result, err := h.rl.Check(r.Context(), ratelimit.Request{
 		Identifier:    req.Identifier,
 		Limit:         req.Limit,
 		WindowSeconds: req.WindowSeconds,
 		Algorithm:     algo,
 	})
+	metrics.RequestDuration.WithLabelValues(algoLabel).Observe(time.Since(start).Seconds())
+
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "rate limit service unavailable")
 		return
+	}
+
+	if result.Allowed {
+		metrics.AllowedTotal.WithLabelValues(algoLabel).Inc()
+	} else {
+		metrics.RejectedTotal.WithLabelValues(algoLabel).Inc()
 	}
 
 	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(req.Limit))

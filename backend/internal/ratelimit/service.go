@@ -6,6 +6,8 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
+
+	"github.com/shardleak/shardleak/internal/metrics"
 )
 
 type Service struct {
@@ -17,14 +19,20 @@ func NewService(rdb *goredis.Client) *Service {
 }
 
 func (s *Service) Check(ctx context.Context, req Request) (Result, error) {
+	var result Result
+	var err error
 	switch req.Algorithm {
 	case TokenBucket:
-		return checkTokenBucket(ctx, s.rdb, req)
+		result, err = checkTokenBucket(ctx, s.rdb, req)
 	case FixedWindow:
-		return checkFixedWindow(ctx, s.rdb, req)
+		result, err = checkFixedWindow(ctx, s.rdb, req)
 	default:
 		return Result{}, fmt.Errorf("unsupported algorithm: %s", req.Algorithm)
 	}
+	if err != nil {
+		metrics.RedisErrorsTotal.Inc()
+	}
+	return result, err
 }
 
 // parseResult converts the raw []any returned by a Lua script into a Result.

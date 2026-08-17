@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/shardleak/shardleak/internal/metrics"
 	"github.com/shardleak/shardleak/internal/postgres"
 )
 
@@ -25,6 +26,12 @@ type Store struct {
 // New returns a Store backed by db.
 func New(db *postgres.DB) *Store {
 	return &Store{db: db}
+}
+
+// dbErr records a DB error metric and wraps the error.
+func dbErr(op string, err error) error {
+	metrics.DBErrorsTotal.Inc()
+	return fmt.Errorf("%s: %w", op, err)
 }
 
 // ── User ──────────────────────────────────────────────────────────────────────
@@ -47,7 +54,7 @@ func (s *Store) CreateUser(ctx context.Context, email, passwordHash string) (*Us
 		if isUniqueViolation(err) {
 			return nil, ErrConflict
 		}
-		return nil, fmt.Errorf("create user: %w", err)
+		return nil, dbErr("create user", err)
 	}
 	return u, nil
 }
@@ -62,7 +69,7 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("get user by email: %w", err)
+		return nil, dbErr("get user by email", err)
 	}
 	return u, nil
 }
@@ -77,7 +84,7 @@ func (s *Store) GetUserByID(ctx context.Context, id string) (*User, error) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("get user by id: %w", err)
+		return nil, dbErr("get user by id", err)
 	}
 	return u, nil
 }
@@ -102,7 +109,7 @@ func (s *Store) CreateAPIKey(ctx context.Context, userID, keyHash, name string) 
 		userID, keyHash, name,
 	).Scan(&k.ID, &k.UserID, &k.KeyHash, &k.Name, &k.CreatedAt, &k.RevokedAt)
 	if err != nil {
-		return nil, fmt.Errorf("create api key: %w", err)
+		return nil, dbErr("create api key", err)
 	}
 	return k, nil
 }
@@ -114,7 +121,7 @@ func (s *Store) GetAPIKeysByUser(ctx context.Context, userID string) ([]APIKey, 
 		userID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list api keys: %w", err)
+		return nil, dbErr("list api keys", err)
 	}
 	defer rows.Close()
 
@@ -122,7 +129,7 @@ func (s *Store) GetAPIKeysByUser(ctx context.Context, userID string) ([]APIKey, 
 	for rows.Next() {
 		var k APIKey
 		if err := rows.Scan(&k.ID, &k.UserID, &k.KeyHash, &k.Name, &k.CreatedAt, &k.RevokedAt); err != nil {
-			return nil, fmt.Errorf("scan api key: %w", err)
+			return nil, dbErr("scan api key", err)
 		}
 		keys = append(keys, k)
 	}
@@ -140,7 +147,7 @@ func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKey, e
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("get api key by hash: %w", err)
+		return nil, dbErr("get api key by hash", err)
 	}
 	return k, nil
 }
@@ -154,7 +161,7 @@ func (s *Store) RevokeAPIKey(ctx context.Context, id, userID string) error {
 		id, userID,
 	)
 	if err != nil {
-		return fmt.Errorf("revoke api key: %w", err)
+		return dbErr("revoke api key", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound
@@ -187,7 +194,7 @@ func (s *Store) CreateLimitConfig(ctx context.Context, userID, identifier, algor
 		if isUniqueViolation(err) {
 			return nil, ErrConflict
 		}
-		return nil, fmt.Errorf("create limit config: %w", err)
+		return nil, dbErr("create limit config", err)
 	}
 	return c, nil
 }
@@ -203,7 +210,7 @@ func (s *Store) GetLimitConfig(ctx context.Context, userID, identifier string) (
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("get limit config: %w", err)
+		return nil, dbErr("get limit config", err)
 	}
 	return c, nil
 }
@@ -214,7 +221,7 @@ func (s *Store) DeleteLimitConfig(ctx context.Context, userID, identifier string
 		userID, identifier,
 	)
 	if err != nil {
-		return fmt.Errorf("delete limit config: %w", err)
+		return dbErr("delete limit config", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound
@@ -229,7 +236,7 @@ func (s *Store) ListLimitConfigs(ctx context.Context, userID string) ([]LimitCon
 		userID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list limit configs: %w", err)
+		return nil, dbErr("list limit configs", err)
 	}
 	defer rows.Close()
 
@@ -237,7 +244,7 @@ func (s *Store) ListLimitConfigs(ctx context.Context, userID string) ([]LimitCon
 	for rows.Next() {
 		var c LimitConfig
 		if err := rows.Scan(&c.ID, &c.UserID, &c.Identifier, &c.Algorithm, &c.Limit, &c.WindowSeconds, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan limit config: %w", err)
+			return nil, dbErr("scan limit config", err)
 		}
 		configs = append(configs, c)
 	}

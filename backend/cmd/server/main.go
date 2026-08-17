@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/shardleak/shardleak/internal/config"
 	"github.com/shardleak/shardleak/internal/handlers"
@@ -77,6 +78,7 @@ func run() error {
 
 	r.Get("/health", health.Health)
 	r.Get("/ready", health.Ready)
+	r.Handle("/metrics", promhttp.Handler())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public auth endpoints
