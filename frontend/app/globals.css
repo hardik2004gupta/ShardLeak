@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: '';
+  --font-mono: '';
+}
+
+body {
+  background-color: #09090b;
+  color: #fafafa;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.bg-grid-sm {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Flow animation for architecture diagram */
+@keyframes flow-down {
+  0%   { transform: translateY(-6px); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(56px); opacity: 0; }
+}
+
+@keyframes flow-down-short {
+  0%   { transform: translateY(-4px); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(36px); opacity: 0; }
+}
+
+.animate-flow-a {
+  animation: flow-down 2.2s ease-in-out infinite;
+}
+.animate-flow-b {
+  animation: flow-down 2.2s ease-in-out infinite 0.75s;
+}
+.animate-flow-c {
+  animation: flow-down 2.2s ease-in-out infinite 1.5s;
+}
+.animate-flow-short-a {
+  animation: flow-down-short 2s ease-in-out infinite 0.3s;
+}
+.animate-flow-short-b {
+  animation: flow-down-short 2s ease-in-out infinite 1.1s;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}

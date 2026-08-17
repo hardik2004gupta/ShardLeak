@@ -72,6 +72,7 @@ func run() error {
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
+	r.Use(appmiddleware.CORS)
 	r.Use(appmiddleware.RequestLogger)
 
 	r.Get("/health", health.Health)
@@ -90,6 +91,7 @@ func run() error {
 			r.Get("/api-keys", apiKeyH.List)
 			r.Delete("/api-keys/{id}", apiKeyH.Revoke)
 			r.Post("/limits", limitsH.Create)
+			r.Get("/limits", limitsH.List)
 			r.Get("/limits/{identifier}", limitsH.Get)
 			r.Delete("/limits/{identifier}", limitsH.Delete)
 		})

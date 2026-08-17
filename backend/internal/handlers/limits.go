@@ -122,6 +122,33 @@ func (h *LimitsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *LimitsHandler) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := appmiddleware.GetUserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+
+	configs, err := h.st.ListLimitConfigs(r.Context(), userID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to retrieve configurations")
+		return
+	}
+
+	result := make([]limitConfigResponse, len(configs))
+	for i, c := range configs {
+		result[i] = limitConfigResponse{
+			Identifier:    c.Identifier,
+			Algorithm:     c.Algorithm,
+			Limit:         c.Limit,
+			WindowSeconds: c.WindowSeconds,
+			CreatedAt:     c.CreatedAt,
+			UpdatedAt:     c.UpdatedAt,
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"configs": result})
+}
+
 func (h *LimitsHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appmiddleware.GetUserID(r.Context())
 	if !ok {

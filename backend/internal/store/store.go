@@ -222,6 +222,28 @@ func (s *Store) DeleteLimitConfig(ctx context.Context, userID, identifier string
 	return nil
 }
 
+func (s *Store) ListLimitConfigs(ctx context.Context, userID string) ([]LimitConfig, error) {
+	rows, err := s.db.Pool.Query(ctx,
+		`SELECT id, user_id, identifier, algorithm, "limit", window_seconds, created_at, updated_at
+		 FROM rate_limit_configs WHERE user_id = $1 ORDER BY created_at DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list limit configs: %w", err)
+	}
+	defer rows.Close()
+
+	configs := make([]LimitConfig, 0)
+	for rows.Next() {
+		var c LimitConfig
+		if err := rows.Scan(&c.ID, &c.UserID, &c.Identifier, &c.Algorithm, &c.Limit, &c.WindowSeconds, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan limit config: %w", err)
+		}
+		configs = append(configs, c)
+	}
+	return configs, rows.Err()
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func isUniqueViolation(err error) bool {
