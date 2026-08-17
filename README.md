@@ -92,6 +92,97 @@ X-RateLimit-Reset: 1787054460
 Retry-After: 42          (rejected requests only)
 ```
 
+## Authentication
+
+Signup and login return a JWT. Pass it as a Bearer token on protected endpoints.
+
+```bash
+# Signup
+curl -X POST http://localhost:8082/api/v1/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"securepassword"}'
+
+# Login
+curl -X POST http://localhost:8082/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"securepassword"}'
+# → {"token":"eyJ..."}
+
+# Current user
+curl http://localhost:8082/api/v1/auth/me \
+  -H "Authorization: Bearer eyJ..."
+```
+
+## API Keys
+
+Create API keys from a JWT-authenticated session. The plaintext key is returned **only at creation** — it is never retrievable again.
+
+```bash
+# Create
+curl -X POST http://localhost:8082/api/v1/api-keys \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Production"}'
+# → {"id":"...","name":"Production","key":"sk_shard_...","created_at":"..."}
+
+# List (metadata only — no key or hash)
+curl http://localhost:8082/api/v1/api-keys \
+  -H "Authorization: Bearer <jwt>"
+
+# Revoke
+curl -X DELETE http://localhost:8082/api/v1/api-keys/<id> \
+  -H "Authorization: Bearer <jwt>"
+```
+
+## Rate-Limit Configuration
+
+Store named configurations in PostgreSQL. JWT required.
+
+```bash
+# Create a configuration
+curl -X POST http://localhost:8082/api/v1/limits \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"identifier":"user:123","algorithm":"token_bucket","limit":100,"window_seconds":60}'
+
+# Get a configuration
+curl http://localhost:8082/api/v1/limits/user:123 \
+  -H "Authorization: Bearer <jwt>"
+
+# Delete a configuration
+curl -X DELETE http://localhost:8082/api/v1/limits/user:123 \
+  -H "Authorization: Bearer <jwt>"
+```
+
+## Rate Limiting (authenticated)
+
+`POST /api/v1/check` now requires an API key. The check body is unchanged.
+
+```bash
+curl -X POST http://localhost:8082/api/v1/check \
+  -H "Authorization: Bearer sk_shard_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "identifier": "user:123",
+    "limit": 5,
+    "window_seconds": 60,
+    "algorithm": "token_bucket"
+  }'
+```
+
+```json
+{"allowed":true,"remaining":4,"reset_at":"2026-08-18T12:01:00Z","retry_after":null}
+```
+
+Response headers on every check:
+
+```
+X-RateLimit-Limit: 5
+X-RateLimit-Remaining: 4
+X-RateLimit-Reset: 1787054460
+Retry-After: 42          (rejected requests only)
+```
+
 ## Engineering Contract
 
 See [`CLAUDE.md`](CLAUDE.md) for the full architecture and development contract.
