@@ -18,6 +18,7 @@ import (
 	"github.com/shardleak/shardleak/internal/handlers"
 	appmiddleware "github.com/shardleak/shardleak/internal/middleware"
 	"github.com/shardleak/shardleak/internal/postgres"
+	"github.com/shardleak/shardleak/internal/ratelimit"
 	"github.com/shardleak/shardleak/internal/redis"
 )
 
@@ -59,6 +60,8 @@ func run() error {
 	slog.Info("connected to redis")
 
 	health := handlers.NewHealthHandler(db, cache)
+	rl := ratelimit.NewService(cache.Native())
+	check := handlers.NewCheckHandler(rl)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -68,6 +71,10 @@ func run() error {
 
 	r.Get("/health", health.Health)
 	r.Get("/ready", health.Ready)
+
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/check", check.Check)
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,

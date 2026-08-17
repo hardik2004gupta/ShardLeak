@@ -26,3 +26,9 @@ func (c *Client) Ping(ctx context.Context) error {
 func (c *Client) Close() error {
 	return c.rdb.Close()
 }
+
+// Native exposes the underlying go-redis client for packages that need
+// direct Redis operations (e.g. the rate-limit Lua scripts).
+func (c *Client) Native() *goredis.Client {
+	return c.rdb
+}
