@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -57,10 +56,4 @@ func (h *HealthHandler) Ready(w http.ResponseWriter, r *http.Request) {
 		"status":   status,
 		"services": services,
 	})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
 }

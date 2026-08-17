@@ -13,12 +13,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/shardleak/shardleak/internal/config"
 	"github.com/shardleak/shardleak/internal/handlers"
 	appmiddleware "github.com/shardleak/shardleak/internal/middleware"
 	"github.com/shardleak/shardleak/internal/postgres"
+	"github.com/shardleak/shardleak/internal/ratelimit"
 	"github.com/shardleak/shardleak/internal/redis"
+	"github.com/shardleak/shardleak/internal/store"
 )
 
 func main() {
@@ -58,16 +61,49 @@ func run() error {
 	}
 	slog.Info("connected to redis")
 
+	st := store.New(db)
 	health := handlers.NewHealthHandler(db, cache)
+	rl := ratelimit.NewService(cache.Native())
+	check := handlers.NewCheckHandler(rl)
+	authH := handlers.NewAuthHandler(st, cfg.JWTSecret)
+	apiKeyH := handlers.NewAPIKeyHandler(st)
+	limitsH := handlers.NewLimitsHandler(st)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
+	r.Use(appmiddleware.CORS)
 	r.Use(appmiddleware.RequestLogger)
 
 	r.Get("/health", health.Health)
 	r.Get("/ready", health.Ready)
+	r.Handle("/metrics", promhttp.Handler())
+
+	r.Route("/api/v1", func(r chi.Router) {
+		// Public auth endpoints
+		r.Post("/auth/signup", authH.Signup)
+		r.Post("/auth/login", authH.Login)
+
+		// JWT-protected endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(appmiddleware.JWTAuth(cfg.JWTSecret))
+			r.Get("/auth/me", authH.Me)
+			r.Post("/api-keys", apiKeyH.Create)
+			r.Get("/api-keys", apiKeyH.List)
+			r.Delete("/api-keys/{id}", apiKeyH.Revoke)
+			r.Post("/limits", limitsH.Create)
+			r.Get("/limits", limitsH.List)
+			r.Get("/limits/{identifier}", limitsH.Get)
+			r.Delete("/limits/{identifier}", limitsH.Delete)
+		})
+
+		// API-key-protected endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(appmiddleware.APIKeyAuth(st))
+			r.Post("/check", check.Check)
+		})
+	})
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
